@@ -18,6 +18,7 @@ Pour toute politique qualite (tests, gates, DoR/DoD, derogations qualite, supply
   - `instant-release_APP`
   - `instant-release_VITRINE`
   - `instant-release_ACTIONS`
+- Mode pipeline (rappel): push/merge = CI uniquement, deploiements staging/prod manuels.
 - Cadence validee: cycles courts `2 jours execution + 3e jour pilotage/reunion`.
 
 ## 3. Principes Kanban retenus
@@ -48,7 +49,7 @@ Le pilotage se fait via **un GitHub Project portfolio unique** qui agrege les is
 | Ready | Ticket complet + dependances identifiees | Travail demarre avec branche/PR liee |
 | In Progress | Owner actif, WIP disponible | PR ouverte + tests developpeur executes (unitaires/services et tests techniques locaux pertinents) |
 | Review | PR liee au ticket, description claire des changements, checks CI lances | Review approuvee + commentaires resolus + gates CI vertes (tests/lint/securite/supply-chain) + PR mergee |
-| Ready Release | DoD cochee + evidence de test + changelog pret | Release executee ou integree a la release planifiee |
+| Ready Release | DoD cochee + evidence de test + changelog pret | Deploiement/release manuel execute ou integre a une fenetre de release planifiee |
 | Blocked | Cause de blocage explicite + date + owner du deblocage | Blocage leve et retour etape precedente |
 | Done | Livraison effective + ticket cloture + lien preuve | N/A |
 
@@ -134,10 +135,11 @@ Regle d'arbitrage:
 2. PR liee au ticket ouverte (dans n'importe lequel des 4 repos) -> `Status=In Progress`.
 3. PR en review -> `Status=Review`.
 4. PR mergee (apres checks CI verts) -> `Status=Ready Release`.
-5. Release effectuee + issue close -> `Status=Done`.
+5. Deploiement/release manuel effectue + issue close -> `Status=Done`.
 6. Label `status/blocked` ajoute -> `Status=Blocked`.
 
 Note: si une automatisation native GitHub n'est pas suffisante, completer avec GitHub Actions.
+Note complementaire: le push/merge ne doit pas declencher de deploiement automatique.
 
 ## 9.1 Regles de coordination multi-repo
 1. Un ticket = un repository principal (`Repository` obligatoire).

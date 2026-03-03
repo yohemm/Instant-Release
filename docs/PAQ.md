@@ -20,6 +20,9 @@ References normatives:
 - `docs/WBS.md`
 - `docs/PBS.md`
 - `docs/KANBAN_DISCIPLINE.md`
+- `docs/INFRA_SERVER_SYSTEM.md`
+- `docs/HARDWARE_REQUIREMENTS.md`
+- `docs/TRACEABILITY_MATRIX.md`
 - `docs/FULL_DOCS.md`
 
 Regles de precedence:
@@ -33,6 +36,9 @@ Matrice de source unique:
 | Decoupage produit | `docs/PBS.md` |
 | Decoupage travail/livrables | `docs/WBS.md` |
 | Organisation, ownership, RACI, escalade | `docs/OBS.md` |
+| Architecture infra serveur/systeme | `docs/INFRA_SERVER_SYSTEM.md` |
+| Hardware requirements et budget materiel | `docs/HARDWARE_REQUIREMENTS.md` |
+| Tracabilite operationnelle requirements->tests->evidence | `docs/TRACEABILITY_MATRIX.md` |
 | Workflow Kanban, WIP, classes de service, tickets, automations, KPI flux | `docs/KANBAN_DISCIPLINE.md` |
 | Politique qualite, tests, gates, supply chain, DoR/DoD, derogations qualite | `docs/PAQ.md` |
 
@@ -44,6 +50,8 @@ Matrice de source unique:
 | Versioning | Independant par repository |
 | Convention commit | Angular / Conventional Commits |
 | Mode release | A la demande, a la feature, a la necessite |
+| Mode pipeline | Push/merge = CI uniquement, deploiement manuel (`workflow_dispatch`) |
+| Registre packages partage inter-repo | GitHub Packages prive (organisation) |
 | Objectif coverage | 100% |
 
 ## 4. Organisation qualite (derivee OBS)
@@ -77,7 +85,7 @@ Regles de qualite appliquees au workflow:
 | Decision | Rationale | Impact |
 |---|---|---|
 | `gitflow light` | Besoin d'environnement progressif (dev -> staging -> main) avec complexite maitrisee | Flux clair de promotion et limitation du risque de regression |
-| Branches de travail `feat/*` et `fix/*` | Segmentation propre des changements | Traçabilite fine des evolutions/corrections |
+| Branches de travail `feat/*` et `fix/*` | Segmentation propre des changements | Tracabilite fine des evolutions/corrections |
 | Branches d'integration `dev`, `staging`, `main` | Validation progressive avant production | Gates successives et go/no-go explicite |
 
 Flux de merge officiel:
@@ -109,6 +117,20 @@ Appliquees a `dev`, `staging`, `main`:
 3. CI verte obligatoire avant merge.
 4. Au moins 1 review approuvee.
 5. Historique linearise (squash ou rebase selon repo policy).
+
+### 6.4 Mode CI/CD applique (aligne infra)
+1. Push/merge sur `feat/*`, `fix/*`, `dev`, `staging`, `main`:
+   - CI uniquement (build/tests/scans), sans deploiement automatique.
+2. Deploiement `staging`:
+   - declenchement manuel via `workflow_dispatch` sur branche `staging`.
+3. Deploiement `production`:
+   - declenchement manuel via `workflow_dispatch` sur branche `main`,
+   - apres decision go/no-go.
+
+### 6.5 Registre packages prive (partage inter-repo)
+1. Registre npm prive retenu: `GitHub Packages`.
+2. Publication et consommation reservees aux membres de l'organisation GitHub.
+3. Authentification via token GitHub (PAT) pour developpeurs et service CI.
 
 ## 7. Gestion tickets et tracabilite
 Source unique du pilotage ticket:
@@ -179,9 +201,11 @@ Plan d'extension:
 1. Ticket en `Ready Release` avec DoD cochee.
 2. Validation tests + CI + gates securite/supply chain.
 3. Decision go/no-go (MGR + leads).
-4. Tag + release du repo concerne.
-5. Evidence package archivee.
-6. Cloture issue et passage `Done`.
+4. Deploiement manuel sur l'environnement cible (`workflow_dispatch`).
+5. Verification post-deploiement.
+6. Tag + release du repo concerne.
+7. Evidence package archivee.
+8. Cloture issue et passage `Done`.
 
 ### 10.3 Evidence package obligatoire
 Contenu minimal:
@@ -266,7 +290,7 @@ Le PAQ est considere valide si:
 5. Le manager valide la version et la date d'effet.
 
 ## 16. Version
-- Version: `PAQ-v1.0`
-- Statut: `Valide equipe`
-- Date d'effet: `2026-03-02`
-- Prochaine revue cible: `2026-03-16`
+- Version: `PAQ-v1.2`
+- Statut: `Valide equipe - realigne infra/process/hardware`
+- Date d'effet: `2026-03-03`
+- Prochaine revue cible: `2026-03-17`

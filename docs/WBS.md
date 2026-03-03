@@ -203,4 +203,7 @@ Les politiques release (cadence, gates, evidence obligatoire) sont maintenues un
 - OBS: `docs/OBS.md`
 - PAQ: `docs/PAQ.md`
 - Charte Kanban: `docs/KANBAN_DISCIPLINE.md`
+- Hardware requirements: `docs/HARDWARE_REQUIREMENTS.md`
+- SFD requirements: `docs/SFD_REQUIREMENTS.md`
+- Matrice de tracabilite operationnelle: `docs/TRACEABILITY_MATRIX.md`
 - Vision cible: `docs/FULL_DOCS.md`

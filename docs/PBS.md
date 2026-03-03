@@ -281,6 +281,8 @@ N0 PF0 InstantRelease Platform
 Le depot courant couvre principalement le scope `instant-release_ACTIONS` et la base documentaire:
 - DevOps CI/CD Core: `poc-action/action.yml`, `scripts/poc/main.sh`, `scripts/poc/lib/*.sh`, `tests_poc/*`, `.github/workflows/*`
 - Documentation: `docs/FULL_DOCS.md`, `docs/TECHNICAL_DOCS.md`, `docs/ROADMAP.md`, `docs/PBS.md`, `help/Management-info-and-doc.md`
+- Exigences/tests/tracabilite operationnelle: `docs/SFD_REQUIREMENTS.md`, `docs/TRACEABILITY_MATRIX.md`
+- Hardware requirements: `docs/HARDWARE_REQUIREMENTS.md`
 - Base web documentaire locale: `index.html`, `style.css`, `Doc-technique.html`, `README.md`
 
 ## 9. Perimetre et frontieres
