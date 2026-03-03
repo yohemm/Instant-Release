@@ -1,84 +1,45 @@
-# InstantRelease - Fiche de route (avant implementation)
+# InstantRelease - Roadmap d'execution
 
-Objectif : valider les choix techniques et le perimetre avant de coder.
+Objectif: piloter l'execution technique POC sans dupliquer les regles deja gouvernees par PAQ/Kanban/OBS.
 
-## Documents lies
-- `docs/TECHNICAL_DOCS.md` : perimetre POC + details d'implementation
-- `docs/FULL_DOCS.md` : vision complete (cible long terme)
+## 0. Cadre documentaire (source de verite)
+1. Regles process/qualite/gates/DoD: `docs/PAQ.md`.
+2. Workflow Kanban, statuts, WIP, SLA, automations: `docs/KANBAN_DISCIPLINE.md`.
+3. Organisation et responsabilites: `docs/OBS.md`.
+4. Design technique POC: `docs/TECHNICAL_DOCS.md`.
 
----
+## 1. Flux MVP cible
+1. Charger config.
+2. Verifier pre-requis.
+3. Calculer version.
+4. Generer changelog.
+5. Creer tag + release.
 
-## 1. Decisions a valider
-- format de config unique : `.instantrelease.yml`
-- type de GitHub Action : composite vs JavaScript
-- convention de commits par defaut (Angular)
-- strategie de versioning (auto + override)
-- politique d'echec : fail-fast vs warnings
+## 2. Lots et statut
+| Lot | Perimetre | Statut | Evidence attendue | Cible |
+|---|---|---|---|---|
+| L1 POC livrable | config + version + changelog + tag + release + dry-run | En cours | run E2E sur repo test + release creee | `{{cycle_L1}}` |
+| L2 Qualite/robustesse | validation schema, gestion erreurs, logs audit/debug | A planifier | PR + tests integration + logs verifiables | `{{cycle_L2}}` |
+| L3 Securite/compliance | scans dependances, scans secrets, rapport audit JSON | A planifier | pipeline CI avec rapports attaches | `{{cycle_L3}}` |
+| L4 Extensibilite | webhooks pre/post, plugins pre/post, hooks on-failure | A planifier | demo fonctionnelle sur repo sandbox | `{{cycle_L4}}` |
+| L5 Vision long terme | monorepo, matrices de deploiement, supply-chain etendue, rapports multi-formats | Backlog | specs valides + decoupage WBS associe | `{{cycle_L5}}` |
 
----
+## 3. Checklist operationnelle immediate
+1. Finaliser `create-release` dans le flux POC si non termine.
+2. Fermer les ecarts L1 avec preuve (issue/PR/run/release).
+3. Decouper L2 en issues atomiques (1 issue = 1 resultat testable).
+4. Planifier L3 avec outillage concret par repo.
+5. Revue Jour 3: go/no-go passage L1 -> L2.
 
-## 2. Architecture cible (POC)
-- un orchestrateur principal (script bash)
-- modules scripts : git / versioning / changelog / release
-- lib commune : logging, validation, utils
+## 4. Definition de completion roadmap
+Un lot est clos seulement si:
+1. l'evidence attendue est disponible et verifiable,
+2. les tickets associes sont en `Done`,
+3. les preuves CI/tests sont liees,
+4. la documentation impactee est mise a jour.
 
----
-
-## 3. Flux POC (MVP)
-1) Charger config
-2) Verifier prerequis (token, repo, branche)
-3) Calculer version
-4) Generer changelog
-5) Tag + release GitHub
-
----
-
-## 4. Backlog technique par lot
-
-### Lot 1 - POC livrable
-- [x] lecture config YAML
-- [x] calcul version via commits
-- [x] changelog Markdown
-- [x] creation tag
-- [ ] creation release GitHub
-- [x] dry-run
-
-### Lot 2 - Qualite & robustesse
-- [ ] validation schema YAML
-- [ ] gestion erreurs centralisee
-- [ ] logs [AUDIT] et [DEBUG]
-- [x] tests scripts (integration + Docker)
-- [x] CI tests POC (minimal + verbose)
-
-### Lot 3 - Securite & compliance
-- scan dependances
-- scan secrets
-- rapport audit JSON
-
-### Lot 4 - Extensibilite
-- webhooks pre/post
-- plugins pre/post
-- hooks on-failure
-
-### Lot 5 - Vision long terme (FULL_DOCS)
-- monorepo + releases par package
-- matrices de deploiement
-- SBOM + supply-chain checks
-- rapports multi-formats
-
----
-
-## 5. Questions ouvertes
-- format exact des messages de commit supportes ?
-- outils pour scans (npm audit, osv, trufflehog) ?
-- mode release : tag uniquement vs release GitHub obligatoire ?
-- doit-on gerer monorepo dans la v1 ?
-
----
-
-## 6. Definition of Done (POC)
-- execution de bout en bout sur un repo exemple
-- tag + release crees sans erreur
-- changelog lisible
-- config unique dans `.instantrelease.yml`
-- mode `dry-run` fonctionnel
+## 5. Version
+- Version: `ROADMAP-v2.0`
+- Statut: `Nettoye et aligne`
+- Date d'effet: `2026-03-03`
+- Prochaine revue cible: `{{date_prochaine_revue}}`
