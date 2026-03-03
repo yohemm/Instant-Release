@@ -1,135 +1,133 @@
 # InstantRelease - Documentation technique (POC)
 
-## 0. Documents lies
-- `docs/FULL_DOCS.md` : vision complete (cible long terme)
-- `docs/ROADMAP.md` : decisions + backlog avant implementation
+## 0. Cadre documentaire (source de verite)
+Ce document decrit uniquement le **design technique POC** de `instant-release_ACTIONS`.
 
----
+Regles de precedence:
+1. Process, qualite, gates, DoR/DoD, derogations: `docs/PAQ.md`.
+2. Workflow tickets/Kanban/WIP/Project: `docs/KANBAN_DISCIPLINE.md`.
+3. Organisation/RACI/escalade: `docs/OBS.md`.
+4. Vision long terme produit: `docs/FULL_DOCS.md`.
+5. Planification d'execution: `docs/ROADMAP.md`.
 
 ## 1. Perimetre POC et objectifs
+InstantRelease est une GitHub Action (composite) qui automatise un cycle de release.
 
-InstantRelease est une GitHub Action (composite) qui automatise le cycle de release d'un projet.
-Objectifs du POC :
-- prouver le flux de release de bout en bout
-- valider le versioning base sur les commits
-- generer changelog + tag + release
-- garder une config unique via `.instantrelease.yml`
+Objectifs POC:
+1. prouver un flux release de bout en bout,
+2. valider le versioning base commits,
+3. generer changelog + tag + release,
+4. centraliser la configuration dans `.instantrelease.yml`.
 
-Hors scope POC (reserve a `docs/FULL_DOCS.md`) : monorepo complet, matrices complexes,
-reporting avance, SBOM, plugins et webhooks complets.
+Hors scope POC:
+1. monorepo avance,
+2. matrices d'environnements complexes,
+3. reporting avance,
+4. ecosysteme plugins/webhooks complet.
 
----
-
-## 2. Architecture & flux d'execution
-
+## 2. Architecture et flux d'execution
 ### 2.1 Vue d'ensemble
-L'action lit une configuration, puis orchestre une suite d'etapes conditionnelles.
-L'execution est lineaire et peut etre court-circuitee par des validations.
+L'action lit la configuration et orchestre des etapes conditionnelles. L'execution est lineaire avec arrets explicites sur echec.
 
-### 2.2 Flux principal (POC)
-1) Charger `.instantrelease.yml`
-2) Verifier les pre-requis (repo propre, token, branche)
-3) Calculer la version
-4) Generer changelog
-5) Creer tag Git
-6) Creer release GitHub
+### 2.2 Flux principal
+1. Charger `.instantrelease.yml`.
+2. Verifier pre-requis (token, branche, etat repo).
+3. Calculer la version.
+4. Generer changelog.
+5. Creer tag Git.
+6. Creer release GitHub.
 
-### 2.3 Flux optionnels
-- build / tests / lint si actives
-- scans de dependances / secrets si actives
-- deploiement si active
+### 2.3 Flux techniques optionnels
+1. build / tests / lint,
+2. scans dependances / secrets,
+3. etapes de deploiement post-release.
 
----
+Note: le **mode de deploiement projet** est gouverne par `docs/PAQ.md` (push/merge = CI uniquement, deploiement manuel).
 
 ## 3. Configuration `.instantrelease.yml` (champ par champ)
-
 ### 3.1 Git
-- `git.user-name` : identite pour les commits automatiques
-- `git.user-email` : email pour les commits automatiques
-- `git.auto-commit` : commit auto des fichiers modifies par le release
-- `git.auto-push` : push automatique vers `git.target-branch`
-- `git.target-branch` : branche cible pour push
+- `git.user-name`
+- `git.user-email`
+- `git.auto-commit`
+- `git.auto-push`
+- `git.target-branch`
 
 ### 3.2 Versioning
-- `versioning.initial-version` : version de depart si aucun tag
-- `versioning.bump` : mode `auto|major|minor|patch|none`
-- `versioning.detect-bump` : activation de la detection via commits
-- `versioning.indicators.major` : motifs pour major
-- `versioning.indicators.minor` : motifs pour minor
-- `versioning.indicators.patch` : motifs pour patch
-- `versioning.version-prefix` : prefix de tag (ex: `v`)
-- `versioning.verify-tag-exists` : stop si tag deja present
+- `versioning.initial-version`
+- `versioning.bump` (`auto|major|minor|patch|none`)
+- `versioning.detect-bump`
+- `versioning.indicators.major`
+- `versioning.indicators.minor`
+- `versioning.indicators.patch`
+- `versioning.version-prefix`
+- `versioning.verify-tag-exists`
 
 ### 3.3 Changelog
-- `changelog.generate` : activation generation changelog
-- `changelog.file` : chemin du fichier changelog
-- `changelog.template` : template Handlebars
-- `changelog.append-mode` : `prepend|append|replace`
-- `changelog.include-contributors` : ajoute auteurs
-- `changelog.include-stats` : ajoute stats commits
+- `changelog.generate`
+- `changelog.file`
+- `changelog.template`
+- `changelog.append-mode` (`prepend|append|replace`)
+- `changelog.include-contributors`
+- `changelog.include-stats`
 
 ### 3.4 Release
-- `release.create-tag` : creation de tag Git
-- `release.create-release` : creation GitHub Release
-- `release.release-draft` : release en brouillon
-- `release.release-prerelease` : prerelease
-- `release.prerelease-suffix` : suffixe prerelease
-- `release.tag-delete-on-failure` : supprime tag si echec
+- `release.create-tag`
+- `release.create-release`
+- `release.release-draft`
+- `release.release-prerelease`
+- `release.prerelease-suffix`
+- `release.tag-delete-on-failure`
 
 ### 3.5 Build
-- `build.enabled` : active etape build
-- `build.command` : commande build
-- `build.artifact-path` : chemin des artefacts
-- `build.upload-artifact` : upload artefacts
+- `build.enabled`
+- `build.command`
+- `build.artifact-path`
+- `build.upload-artifact`
 
 ### 3.6 Tests
-- `tests.enabled` : active tests
-- `tests.unit-tests-command` : commande tests unitaires
-- `tests.coverage-threshold` : seuil couverture
-- `tests.lint-enabled` : active lint
-- `tests.lint-command` : commande lint
+- `tests.enabled`
+- `tests.unit-tests-command`
+- `tests.coverage-threshold`
+- `tests.lint-enabled`
+- `tests.lint-command`
 
 ### 3.7 Security
-- `security.dependency-scan` : audit dependances
-- `security.secret-scan` : scan secrets
-- `security.commit-signature-check` : verification signatures
+- `security.dependency-scan`
+- `security.secret-scan`
+- `security.commit-signature-check`
+
+Note: les seuils/severites bloquantes sont definis uniquement dans `docs/PAQ.md`.
 
 ### 3.8 Deployment
-- `deployment.enabled` : active deploiement
-- `deployment.environment` : env cible
-- `deployment.command` : commande deploy
-- `deployment.post-deploy-validation` : validation post deploy
-- `deployment.post-deploy-check-url` : URL de healthcheck
+- `deployment.enabled`
+- `deployment.environment`
+- `deployment.command`
+- `deployment.post-deploy-validation`
+- `deployment.post-deploy-check-url`
 
 ### 3.9 Webhooks
-- `webhooks.pre-flight.enabled` : webhook avant release
-- `webhooks.pre-flight.url` : URL pre-flight
-- `webhooks.pre-flight.retry-attempts` : retry
-- `webhooks.pre-flight.timeout` : timeout
-- `webhooks.post-release.enabled` : webhook post release
-- `webhooks.post-release.url` : URL post release
-- `webhooks.post-release.retry-attempts` : retry
-- `webhooks.post-release.timeout` : timeout
+- `webhooks.pre-flight.enabled`
+- `webhooks.pre-flight.url`
+- `webhooks.pre-flight.retry-attempts`
+- `webhooks.pre-flight.timeout`
+- `webhooks.post-release.enabled`
+- `webhooks.post-release.url`
+- `webhooks.post-release.retry-attempts`
+- `webhooks.post-release.timeout`
 
 ### 3.10 Plugins
-- `plugins.pre-flight.enabled` : script pre-flight
-- `plugins.pre-flight.script` : chemin script
-- `plugins.pre-flight.timeout` : timeout
-- `plugins.post-release.enabled` : script post-release
-- `plugins.post-release.script` : chemin script
-- `plugins.post-release.timeout` : timeout
+- `plugins.pre-flight.enabled`
+- `plugins.pre-flight.script`
+- `plugins.pre-flight.timeout`
+- `plugins.post-release.enabled`
+- `plugins.post-release.script`
+- `plugins.post-release.timeout`
 
-### 3.11 Debug & options
-- `debug` : logs detailles
-- `dry-run` : simulation (pas de tag/push)
-
----
+### 3.11 Debug
+- `debug`
+- `dry-run`
 
 ## 4. Structure de fichiers cible (POC)
-
-Note : `deploy/` et `reporting/` sont des dossiers freres sous `scripts/`,
-pas des sous-elements de `pre-deploy-check.sh`.
-
 ```
 instantrelease/
 |-- action.yml
@@ -177,89 +175,58 @@ instantrelease/
     `-- integration/
 ```
 
----
+## 5. Modules prevus
+### 5.1 Existant POC
+1. lecture config YAML,
+2. calcul version basique,
+3. generation changelog basique,
+4. creation tag + release (GitHub API).
 
-## 5. Modules / scripts prevus (existant vs a venir)
+### 5.2 A venir
+1. validation schema YAML,
+2. systeme plugins pre/post,
+3. scans securite avances,
+4. generation SBOM,
+5. rapports d'audit.
 
-### 5.1 Existant (POC)
-- lecture config YAML
-- calcul version basique
-- generation changelog basique
-- creation tag + release (GitHub API)
-
-### 5.2 A venir (cible `docs/FULL_DOCS.md`)
-- validation schema YAML
-- systeme plugins pre/post
-- scans securite avances
-- generation SBOM
-- gestion monorepo
-- rapports d'audit
-
----
-
-## 6. Versioning + changelog + release
-
+## 6. Comportements techniques attendus
 ### 6.1 Versioning
-- base sur les commits (convention type Angular)
-- priorite : major > minor > patch
-- fallback sur `initial-version` si aucun tag
+1. base commits (convention Angular),
+2. priorite `major > minor > patch`,
+3. fallback `initial-version` si aucun tag.
 
 ### 6.2 Changelog
-- genere a partir des commits depuis le dernier tag
-- output en Markdown via template
+1. genere depuis le dernier tag,
+2. rendu Markdown via template.
 
 ### 6.3 Release
-- creation tag `version-prefix + version`
-- creation release avec notes extraites du changelog
+1. tag `version-prefix + version`,
+2. release avec notes extraites du changelog.
 
----
-
-## 7. Tests / securite / deploiement
-
-### 7.1 Tests
-- commande unique, retourne code non zero si echec
-- blocage de la release en cas d'echec (sauf `dry-run`)
-- tests POC : scripts bash + integration sur repo temporaire
-- CI : workflows POC (minimal + verbose)
-
-### 7.1.1 Comment lancer les tests
-Local (bash) :
-```
+## 7. Execution des tests POC
+### 7.1 Local bash
+```bash
 bash tests_poc/run.sh
 ```
 
-Local (Docker, isole) :
-```
+### 7.2 Local Docker isole
+```bash
 bash scripts/run-tests-docker.sh
 ```
 
-Local (Docker, silencieux) :
-```
+### 7.3 Local Docker silencieux
+```bash
 bash scripts/run-tests-docker.sh --quiet
 ```
 
-CI :
+### 7.4 CI
 - `.github/workflows/poc-tests-minimal.yml`
 - `.github/workflows/poc-tests-verbose.yml`
 
-### 7.2 Securite
-- audit dependances si active
-- scan secrets si active
-- stop si severite au-dessus du seuil (a definir)
+## 8. Limites POC
+1. pas de monorepo,
+2. pas de matrice multi-environnements,
+3. pas de reporting avance complet,
+4. pas de framework plugins complet.
 
-### 7.3 Deploiement
-- execution commande `deployment.command`
-- validation optionnelle via URL
-
----
-
-## 8. Limites POC + backlog technique
-
-### 8.1 Limites POC
-- pas de monorepo
-- pas de matrice d'environnements
-- pas de reporting avance
-- pas de signatures GPG
-
-### 8.2 Backlog technique
-Voir `docs/ROADMAP.md` pour la priorisation et les lots.
+Backlog et priorisation: voir `docs/ROADMAP.md`.
