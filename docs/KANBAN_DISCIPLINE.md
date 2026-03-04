@@ -9,6 +9,8 @@ Ce document definit la methode de travail officielle du projet InstantRelease:
 Ce document est operationnel et remplace toute pratique ad hoc.
 Pour tout sujet d'organisation (roles, ownership, RACI), la source de verite est `docs/OBS.md`.
 Pour toute politique qualite (tests, gates, DoR/DoD, derogations qualite, supply chain), la source de verite est `docs/PAQ.md`.
+Pour les intentions officielles et le nom de la methode projet, la source de verite est `docs/PAQ.md` sections 2.1 et 2.2.
+Pour la methode de risque et le registre des risques, la source de verite est `docs/RISK_MANAGEMENT_PLAN.md`.
 
 ## 2. Contexte projet
 - Equipe: 1 manager, 2 dev DevOps, 2 dev FullStack web.
@@ -27,6 +29,10 @@ Pour toute politique qualite (tests, gates, DoR/DoD, derogations qualite, supply
 3. Rendre explicites les politiques d'entree/sortie de chaque etape.
 4. Mesurer le flux (lead time, throughput, aging, blocages).
 5. Ameliorer en continu a chaque cycle.
+
+Note de cadrage:
+1. Kanban discipline est la couche d'execution du modele hybride.
+2. La couche de gouvernance (cadre Waterfall) est definie dans `docs/PAQ.md`.
 
 ## 4. Structure du GitHub Project (workflow officiel)
 Le pilotage se fait via **un GitHub Project portfolio unique** qui agrege les issues des 4 repositories.
@@ -92,6 +98,19 @@ Regle d'arbitrage:
 - Risk
 - Documentation
 
+### 7.1.1 Modele de relation entre types
+Schema pipeline de reference:
+```mermaid
+flowchart LR
+    Epic --> Feature --> Requirement --> Test --> Done
+```
+
+Regle:
+1. Le flux de delivery s'execute au niveau `Requirement`.
+2. Une `Feature` est consideree `Done` quand ses requirements associes sont `Done`.
+3. Une `Epic` est consideree `Done` quand ses features associees sont `Done`.
+4. Le setup operationnel du Project (import/sync/script) est maintenu dans `docs/GITHUB_PROJECT_SETUP.md` section 2.
+
 ### 7.2 Champs obligatoires dans chaque issue
 | Champ | Description |
 |---|---|
@@ -129,6 +148,54 @@ Regle d'arbitrage:
 | Start Date | Date | date de demarrage |
 | Target Date | Date | date cible |
 | Cycle | Text | ex: C2026-03-W1 |
+| Milestone | Milestone (issue field) | milestone repo associee a l'issue |
+
+## 8.1 Catalogue milestones par repository
+`instant-release_ACTIONS`:
+1. `ACTIONS-M0-RESET-BOARD`
+2. `ACTIONS-M1-CONTRACT-PREFLIGHT`
+3. `ACTIONS-M2-VERSIONING-CHANGELOG-RELEASE`
+4. `ACTIONS-M3-QUALITY-GATES-CI`
+5. `ACTIONS-M4-SUPPLY-CHAIN-EVIDENCE`
+6. `ACTIONS-M5-RELEASE-HARDENING`
+7. `ACTIONS-v{{ACTIONS_VERSION_01}}`
+
+`instant-release_API`:
+1. `API-M0-RESET-BOARD`
+2. `API-M1-CONTRATS-ENDPOINTS`
+3. `API-M2-SERVICES-UNIT-TESTS`
+4. `API-M3-CONTROLLERS-E2E`
+5. `API-M4-AUTHN-AUTHZ`
+6. `API-M5-QUALITY-RELEASE-READY`
+7. `API-v{{API_VERSION_01}}`
+
+`instant-release_APP`:
+1. `APP-M0-RESET-BOARD`
+2. `APP-M1-DASHBOARD`
+3. `APP-M2-CONFIG-CONSOLE`
+4. `APP-M3-RUN-LOGS`
+5. `APP-M4-QUALITY-RELEASE-READY`
+6. `APP-v{{APP_VERSION_01}}`
+
+`instant-release_VITRINE`:
+1. `VITRINE-M0-RESET-BOARD`
+2. `VITRINE-M1-PAGES-CORE`
+3. `VITRINE-M2-SEO-ANALYTICS`
+4. `VITRINE-M3-QUALITY-RELEASE-READY`
+5. `VITRINE-v{{VITRINE_VERSION_01}}`
+
+## 8.2 Politique de liaison Status/Cycle/Milestone
+Definitions:
+1. `Status`: etat instantane du ticket dans le flux Kanban.
+2. `Cycle`: fenetre de pilotage de travail (placeholder ex: `{{CYCLE_01}}`, `{{CYCLE_02}}`).
+3. `Milestone`: objectif de livraison fonctionnel ou release repo.
+
+Regles obligatoires:
+1. Entree en `Ready`: `Cycle` renseigne + `Milestone` renseignee.
+2. Passage de cycle sans livraison: `Cycle` change, `Milestone` reste stable.
+3. Passage en `Done`: evidence complete + milestone validee pour le ticket.
+4. Cloture milestone: tous les tickets associes en `Done`.
+5. Ticket cross-repo: milestone du repo principal + sous-tickets milestones repo cible.
 
 ## 9. Automatisations GitHub Project (minimum)
 1. Issue creee et ajoutee au project -> `Status=Backlog Qualifie`.

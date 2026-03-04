@@ -236,6 +236,14 @@ function Get-TypeLabelFromType($TypeValue) {
 }
 
 $Script:RepoIssueTitleCache = @{}
+$Script:RepoMilestoneTitleCache = @{}
+
+function Normalize-IssueBodyText($Body) {
+  if ([string]::IsNullOrWhiteSpace($Body)) { return $Body }
+  $normalized = [regex]::Replace($Body, "\s*\|\s*", "`n")
+  $normalized = [regex]::Replace($normalized, "(`r?`n){3,}", "`n`n")
+  return $normalized.Trim()
+}
 
 function Get-RepoIssueTitleSet($Repo) {
   if ($Script:RepoIssueTitleCache.ContainsKey($Repo)) {
@@ -257,6 +265,59 @@ function Get-RepoIssueTitleSet($Repo) {
 
   $Script:RepoIssueTitleCache[$Repo] = $set
   return $set
+}
+
+function Get-RepoMilestoneTitleSet($Repo) {
+  if ($Script:RepoMilestoneTitleCache.ContainsKey($Repo)) {
+    return $Script:RepoMilestoneTitleCache[$Repo]
+  }
+
+  $set = @{}
+  $raw = gh api "repos/$Repo/milestones?state=all&per_page=100" --paginate --jq ".[].title" 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Impossible de lister les milestones pour $Repo. Detail: $raw"
+    $Script:RepoMilestoneTitleCache[$Repo] = $set
+    return $set
+  }
+
+  $raw -split "`n" | ForEach-Object {
+    $name = $_.Trim()
+    if ($name) { $set[$name] = $true }
+  }
+
+  $Script:RepoMilestoneTitleCache[$Repo] = $set
+  return $set
+}
+
+function Test-RepoMilestoneExists($Repo, $MilestoneTitle) {
+  if ([string]::IsNullOrWhiteSpace($MilestoneTitle)) { return $false }
+  $milestones = Get-RepoMilestoneTitleSet -Repo $Repo
+  return $milestones.ContainsKey($MilestoneTitle)
+}
+
+function Set-IssueMilestone($Repo, $IssueNumber, $MilestoneTitle) {
+  if ([string]::IsNullOrWhiteSpace($MilestoneTitle)) { return }
+  if (-not (Test-RepoMilestoneExists -Repo $Repo -MilestoneTitle $MilestoneTitle)) {
+    Write-Warning "Milestone introuvable dans $Repo, skip assignation issue #${IssueNumber}: $MilestoneTitle"
+    return
+  }
+
+  $out = gh issue edit $IssueNumber --repo $Repo --milestone $MilestoneTitle 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Echec assignation milestone pour $Repo#$IssueNumber ($MilestoneTitle): $out"
+  }
+}
+
+function Set-IssueBodyIfNeeded($Repo, $IssueNumber, $CurrentBody, $TargetBody) {
+  $target = Normalize-IssueBodyText -Body $TargetBody
+  $current = Normalize-IssueBodyText -Body $CurrentBody
+  if ([string]::IsNullOrWhiteSpace($target)) { return }
+  if ($target -eq $current) { return }
+
+  $out = gh issue edit $IssueNumber --repo $Repo --body $target 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Echec mise a jour body pour $Repo#${IssueNumber}: $out"
+  }
 }
 
 function Archive-DuplicateIssues($RepoMapToUse) {
@@ -427,14 +488,30 @@ function Import-CsvToIssues($CsvPath, $RepoMapToUse) {
       return
     }
 
-    gh issue create `
-      --repo $repo `
-      --title $row.Title `
-      --body $row.Body `
-      --label $labels `
-      --project $ProjectTitle | Out-Null
+    $issueBody = Normalize-IssueBodyText -Body $row.Body
+
+    $createArgs = @(
+      "issue", "create",
+      "--repo", $repo,
+      "--title", $row.Title,
+      "--body", $issueBody,
+      "--label", $labels,
+      "--project", $ProjectTitle
+    )
+
+    $milestoneVal = $row.Milestone
+    if (-not [string]::IsNullOrWhiteSpace($milestoneVal)) {
+      if (Test-RepoMilestoneExists -Repo $repo -MilestoneTitle $milestoneVal) {
+        $createArgs += @("--milestone", $milestoneVal)
+      }
+      else {
+        Write-Warning "Milestone absente dans $repo, creation sans milestone: $milestoneVal | $($row.Title)"
+      }
+    }
+
+    $createOut = & gh @createArgs 2>&1
     if ($LASTEXITCODE -ne 0) {
-      throw "Echec creation issue pour '$($row.Title)' dans $repo"
+      throw "Echec creation issue pour '$($row.Title)' dans $repo. Detail: $createOut"
     }
 
     $titleSet[$row.Title] = $true
@@ -453,6 +530,138 @@ function Load-CsvReferenceByTitle() {
     }
   }
   return $rows
+}
+
+function Load-AllCsvRows() {
+  $all = @()
+  $paths = Get-ImportCsvPaths
+  foreach ($p in $paths) {
+    $all += @(Import-Csv $p)
+  }
+  return $all
+}
+
+function Get-EpicIdForFeatureId($FeatureId) {
+  if ([string]::IsNullOrWhiteSpace($FeatureId)) { return $null }
+  if ($FeatureId.StartsWith("F-ACT-")) { return "E-ACT-01" }
+  if ($FeatureId.StartsWith("F-API-")) { return "E-API-01" }
+  if ($FeatureId.StartsWith("F-APP-")) { return "E-APP-01" }
+  if ($FeatureId.StartsWith("F-VIT-")) { return "E-VIT-01" }
+  if ($FeatureId.StartsWith("F-X-"))   { return "E-X-01" }
+  if ($FeatureId.StartsWith("F-DOC-")) { return "E-DOC-01" }
+  return $null
+}
+
+function Get-IssueIdentityIndex($RepoMapToUse) {
+  $index = @{}
+  foreach ($repo in $RepoMapToUse.Values) {
+    $raw = gh issue list --repo $repo --state all --json id,number,title --limit 1000 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warning "Impossible de lister les issues pour index parent ($repo): $raw"
+      continue
+    }
+    $items = $raw | ConvertFrom-Json
+    foreach ($it in $items) {
+      if ([string]::IsNullOrWhiteSpace($it.title)) { continue }
+      $key = "$repo|$($it.title)"
+      $index[$key] = @{
+        Repo = $repo
+        Title = $it.title
+        Number = $it.number
+        Id = $it.id
+      }
+    }
+  }
+  return $index
+}
+
+function Add-SubIssueLink($ParentIssueId, $ChildIssueId, $ParentRef, $ChildRef) {
+  if ([string]::IsNullOrWhiteSpace($ParentIssueId) -or [string]::IsNullOrWhiteSpace($ChildIssueId)) { return }
+  if ($ParentIssueId -eq $ChildIssueId) { return }
+
+  $mutation = @'
+mutation($parentId:ID!, $subIssueId:ID!) {
+  addSubIssue(input:{issueId:$parentId, subIssueId:$subIssueId}) {
+    issue { id }
+  }
+}
+'@
+
+  try {
+    Invoke-GhGraphQL -Query $mutation -Variables @{ parentId = $ParentIssueId; subIssueId = $ChildIssueId } | Out-Null
+  }
+  catch {
+    $msg = $_.Exception.Message
+    if ($msg -match "already" -or $msg -match "exists" -or $msg -match "has a parent") {
+      return
+    }
+    Write-Warning "Lien parent echec ($ParentRef -> $ChildRef): $msg"
+  }
+}
+
+function Sync-ParentIssueLinks($RepoMapToUse) {
+  $rows = Load-AllCsvRows
+  $issueIndex = Get-IssueIdentityIndex -RepoMapToUse $RepoMapToUse
+
+  $featureById = @{}
+  $epicById = @{}
+  foreach ($r in $rows) {
+    if ($r.Type -eq "Feature" -and -not [string]::IsNullOrWhiteSpace($r.'Feature ID')) {
+      $featureById[$r.'Feature ID'] = $r
+    }
+    if ($r.Type -eq "Epic") {
+      $eid = ($r.Title -split "\|")[0].Trim()
+      if (-not [string]::IsNullOrWhiteSpace($eid)) {
+        $epicById[$eid] = $r
+      }
+    }
+  }
+
+  $linked = 0
+  foreach ($r in $rows) {
+    $childRepoKey = $r.Repository
+    if (-not $RepoMapToUse.ContainsKey($childRepoKey)) { continue }
+    $childRepo = $RepoMapToUse[$childRepoKey]
+    $childKey = "$childRepo|$($r.Title)"
+    if (-not $issueIndex.ContainsKey($childKey)) { continue }
+    $childIssue = $issueIndex[$childKey]
+
+    $parentRow = $null
+    if ($r.Type -eq "Requirement") {
+      $fid = $r.'Feature ID'
+      if (-not [string]::IsNullOrWhiteSpace($fid) -and $featureById.ContainsKey($fid)) {
+        $parentRow = $featureById[$fid]
+      }
+    }
+    elseif ($r.Type -eq "Feature") {
+      $eid = Get-EpicIdForFeatureId -FeatureId $r.'Feature ID'
+      if (-not [string]::IsNullOrWhiteSpace($eid) -and $epicById.ContainsKey($eid)) {
+        $parentRow = $epicById[$eid]
+      }
+    }
+    elseif ($r.Type -eq "Documentation") {
+      if ($epicById.ContainsKey("E-DOC-01")) {
+        $parentRow = $epicById["E-DOC-01"]
+      }
+    }
+
+    if ($null -eq $parentRow) { continue }
+    if (-not $RepoMapToUse.ContainsKey($parentRow.Repository)) { continue }
+
+    $parentRepo = $RepoMapToUse[$parentRow.Repository]
+    $parentKey = "$parentRepo|$($parentRow.Title)"
+    if (-not $issueIndex.ContainsKey($parentKey)) { continue }
+    $parentIssue = $issueIndex[$parentKey]
+
+    Add-SubIssueLink `
+      -ParentIssueId $parentIssue.Id `
+      -ChildIssueId $childIssue.Id `
+      -ParentRef "$parentRepo#$($parentIssue.Number)" `
+      -ChildRef "$childRepo#$($childIssue.Number)"
+    $linked++
+  }
+
+  Write-Host "Sync parent issues termine. Liens traites: $linked"
 }
 
 function Get-ProjectContext($Login, $Title) {
@@ -553,6 +762,7 @@ query($projectId:ID!, $after:String) {
               body
               number
               repository { name nameWithOwner }
+              milestone { title }
               labels(first:100) { nodes { name } }
             }
           }
@@ -693,6 +903,26 @@ mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $text:String!) {
   Invoke-GhGraphQL -Query $mutation -Variables @{ projectId = $ProjectId; itemId = $ItemId; fieldId = $Field.id; text = $Value } | Out-Null
 }
 
+function Set-ProjectFieldAuto($ProjectId, $ItemId, $Field, $Value) {
+  if ([string]::IsNullOrWhiteSpace($Value)) { return }
+  if ($null -eq $Field) { return }
+  if ($Field.type -match "Milestone" -or $Field.name -eq "Milestone" -or $Field.name -eq "Milestones") {
+    return
+  }
+  if ($Field.type -eq "ProjectV2SingleSelectField") {
+    Set-ProjectSingleSelectField -ProjectId $ProjectId -ItemId $ItemId -Field $Field -Value $Value
+    return
+  }
+  Set-ProjectTextField -ProjectId $ProjectId -ItemId $ItemId -Field $Field -Value $Value
+}
+
+function Get-ProjectFieldByNames($Fields, $Names) {
+  foreach ($n in $Names) {
+    if ($Fields.ContainsKey($n)) { return $Fields[$n] }
+  }
+  return $null
+}
+
 function Map-TypeFromLabel($Raw) {
   switch ($Raw) {
     "epic" { return "Epic" }
@@ -764,6 +994,8 @@ function Sync-ProjectFieldsFromIssues($ProjectContext) {
     $prioVal = if ($csvRow) { $csvRow.Priority } else { Map-PriorityFromLabel -Raw $prioRaw }
     $classVal = if ($csvRow) { $csvRow.'Class of Service' } else { Map-ClassFromLabel -Raw $classRaw }
     $sizeVal = if ($csvRow) { $csvRow.Size } else { $null }
+    $cycleVal = if ($csvRow -and -not [string]::IsNullOrWhiteSpace($csvRow.Cycle)) { $csvRow.Cycle } else { Get-BodyFieldValue -Body $issue.body -FieldName "Cycle" }
+    $milestoneVal = if ($csvRow -and -not [string]::IsNullOrWhiteSpace($csvRow.Milestone)) { $csvRow.Milestone } else { Get-BodyFieldValue -Body $issue.body -FieldName "Milestone" }
 
     $pbsVal = if ($csvRow -and -not [string]::IsNullOrWhiteSpace($csvRow.'PBS ID')) { $csvRow.'PBS ID' } else { Get-BodyFieldValue -Body $issue.body -FieldName "PBS ID" }
     $rqVal = if ($csvRow -and -not [string]::IsNullOrWhiteSpace($csvRow.'Requirement ID')) { $csvRow.'Requirement ID' } else { Get-BodyFieldValue -Body $issue.body -FieldName "Requirement ID" }
@@ -772,6 +1004,12 @@ function Sync-ProjectFieldsFromIssues($ProjectContext) {
     $testVal = if ($csvRow -and -not [string]::IsNullOrWhiteSpace($csvRow.'Test ID')) { $csvRow.'Test ID' } else { Get-BodyFieldValue -Body $issue.body -FieldName "Test ID" }
 
     try {
+      if ($csvRow) {
+        Set-IssueBodyIfNeeded -Repo $issue.repository.nameWithOwner -IssueNumber $issue.number -CurrentBody $issue.body -TargetBody $csvRow.Body
+      }
+
+      Set-IssueMilestone -Repo $issue.repository.nameWithOwner -IssueNumber $issue.number -MilestoneTitle $milestoneVal
+
       Set-ProjectSingleSelectField -ProjectId $projectId -ItemId $item.id -Field $fields["Type"] -Value $typeVal
       Set-ProjectSingleSelectField -ProjectId $projectId -ItemId $item.id -Field $fields["Area"] -Value $areaVal
       Set-ProjectSingleSelectField -ProjectId $projectId -ItemId $item.id -Field $fields["Priority"] -Value $prioVal
@@ -783,6 +1021,15 @@ function Sync-ProjectFieldsFromIssues($ProjectContext) {
       Set-ProjectTextField -ProjectId $projectId -ItemId $item.id -Field $fields["Feature ID"] -Value $featVal
       Set-ProjectTextField -ProjectId $projectId -ItemId $item.id -Field $fields["WBS ID"] -Value $wbsVal
       Set-ProjectTextField -ProjectId $projectId -ItemId $item.id -Field $fields["Test ID"] -Value $testVal
+      Set-ProjectTextField -ProjectId $projectId -ItemId $item.id -Field $fields["Cycle"] -Value $cycleVal
+
+      $milestoneField = Get-ProjectFieldByNames -Fields $fields -Names @("Milestone", "Milestones")
+      try {
+        Set-ProjectFieldAuto -ProjectId $projectId -ItemId $item.id -Field $milestoneField -Value $milestoneVal
+      }
+      catch {
+        Write-Warning "Sync milestone project ignoree sur '$($issue.title)': $($_.Exception.Message)"
+      }
       $updated++
     }
     catch {
@@ -818,6 +1065,12 @@ if ($needRepoAccess) {
     throw "Aucun repository accessible en ecriture. Verifie les droits repo + l'auth gh."
   }
 }
+else {
+  $ActiveRepoMap = Get-AccessibleRepoMap -InputMap $RepoMap
+  if ($ActiveRepoMap.Count -eq 0) {
+    Write-Warning "Aucun repository accessible en ecriture pour sync parent issues. Le script continue sans synchronisation Parent Issue."
+  }
+}
 
 if (-not $SyncOnly) {
   Ensure-StandardLabels -RepoMapToUse $ActiveRepoMap
@@ -837,6 +1090,10 @@ if ($DeleteImportedIssues) {
 
 if ($DeleteAllIssues) {
   Delete-AllIssues -RepoMapToUse $ActiveRepoMap
+}
+
+if ($ActiveRepoMap.Count -gt 0) {
+  Sync-ParentIssueLinks -RepoMapToUse $ActiveRepoMap
 }
 
 $ctx = Get-ProjectContext -Login $Org -Title $ProjectTitle

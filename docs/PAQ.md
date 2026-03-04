@@ -20,6 +20,7 @@ References normatives:
 - `docs/WBS.md`
 - `docs/PBS.md`
 - `docs/KANBAN_DISCIPLINE.md`
+- `docs/RISK_MANAGEMENT_PLAN.md`
 - `docs/INFRA_SERVER_SYSTEM.md`
 - `docs/HARDWARE_REQUIREMENTS.md`
 - `docs/TRACEABILITY_MATRIX.md`
@@ -40,7 +41,32 @@ Matrice de source unique:
 | Hardware requirements et budget materiel | `docs/HARDWARE_REQUIREMENTS.md` |
 | Tracabilite operationnelle requirements->tests->evidence | `docs/TRACEABILITY_MATRIX.md` |
 | Workflow Kanban, WIP, classes de service, tickets, automations, KPI flux | `docs/KANBAN_DISCIPLINE.md` |
+| Methode risque, registre risques, KRIs, contingence | `docs/RISK_MANAGEMENT_PLAN.md` |
 | Politique qualite, tests, gates, supply chain, DoR/DoD, derogations qualite | `docs/PAQ.md` |
+
+## 2.1 Intentions officielles de la methode projet
+Intentions validees equipe:
+1. Fiabiliser les livraisons multi-repo sans regression.
+2. Garantir la tracabilite complete `besoin -> implementation -> test -> preuve`.
+3. Maximiser la vitesse utile (finir les tickets) plutot que la vitesse brute (ouvrir des tickets).
+4. Rendre la qualite non negociable dans le flux standard.
+5. Piloter par donnees (KPI, risques, capacite) et non par intuition.
+6. Maintenir une source unique par sujet documentaire pour limiter les conflits.
+7. Proteger la capacite equipe via WIP explicite et gestion des blocages.
+8. Preparer la montee en charge future sans rework structurel du cadre.
+
+## 2.2 Nom et structure de la methode
+Nom retenu:
+1. **Modele hybride: Waterfall de gouvernance + Kanban discipline d'execution**.
+
+Structure cible:
+1. Niveau macro (gouvernance): livrables cadres, jalons, validation readiness/go-no-go.
+2. Niveau micro (execution): flux continu Kanban, tirage des tickets, WIP, amelioration continue.
+
+Rationale:
+1. Le projet impose une forte tracabilite et des preuves de conformite.
+2. Le projet requiert aussi adaptation rapide sur un perimetre multi-repo.
+3. Le mode hybride reduit le risque organisationnel sans perdre en reactivite.
 
 ## 3. Baseline projet
 | Element | Valeur |
@@ -69,6 +95,7 @@ Regles qualite appliquees:
 ### 5.1 Choix de methode
 | Decision | Rationale | Impact |
 |---|---|---|
+| Modele hybride Waterfall + Kanban discipline | Besoin simultane de gouvernance forte et d'execution adaptive | Cadre stable, flux continu, preuves de livraison auditables |
 | Kanban discipline multi-repo | Equipe reduite, flux continu, priorites variables | Priorisation continue, limitation WIP, reduction des blocages |
 | Cadence de pilotage alignee Kanban | Besoin de pilotage frequent sans overhead Scrum lourd | Boucle courte de decision/replanification |
 
