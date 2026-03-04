@@ -10,7 +10,7 @@ Tous les CSV sont centralises dans `docs/github_project_csv/`.
 3. Requirements:
    - `docs/github_project_csv/GITHUB_PROJECT_REQUIREMENTS_IMPORT.csv` (41 items)
 4. Documentation:
-   - `docs/github_project_csv/GITHUB_PROJECT_DOCUMENTATION_IMPORT.csv` (6 items)
+   - `docs/github_project_csv/GITHUB_PROJECT_DOCUMENTATION_IMPORT.csv` (7 items)
 
 Ordre recommande:
 1. importer `EPICS`,
@@ -44,11 +44,11 @@ Regle:
 5. Importer `GITHUB_PROJECT_REQUIREMENTS_IMPORT.csv`.
 6. Importer `GITHUB_PROJECT_DOCUMENTATION_IMPORT.csv`.
 7. Controler:
-   - total items attendus: `74`
+   - total items attendus: `75`
    - `Type=Epic`: `7`
    - `Type=Feature`: `20`
    - `Type=Requirement`: `41`
-   - `Type=Documentation`: `6`
+   - `Type=Documentation`: `7`
 8. Verifier que `Cycle` et `Milestone` sont bien renseignes apres sync.
 
 ## 4. Import fallback via GitHub CLI (sans import CSV natif)

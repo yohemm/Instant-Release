@@ -134,9 +134,73 @@ function Assert-GhAuth() {
   }
 }
 
+function Test-RetryableGhError($text) {
+  if ([string]::IsNullOrWhiteSpace($text)) { return $false }
+  return ($text -match "HTTP 502" -or
+          $text -match "HTTP 503" -or
+          $text -match "HTTP 504" -or
+          $text -match "Bad Gateway" -or
+          $text -match "timed out" -or
+          $text -match "connection reset")
+}
+
+function Invoke-GhCommandWithRetry([string[]]$GhArgs, [int]$MaxAttempts = 4) {
+  $lastOut = ""
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    $raw = & gh @GhArgs 2>&1
+    if ($LASTEXITCODE -eq 0) {
+      return $raw
+    }
+
+    $lastOut = "$raw"
+    if ((Test-RetryableGhError -text $lastOut) -and $attempt -lt $MaxAttempts) {
+      Start-Sleep -Seconds ([Math]::Pow(2, $attempt - 1))
+      continue
+    }
+    throw $lastOut
+  }
+  throw $lastOut
+}
+
+function ConvertFrom-GhJsonSafe($Raw, $Context) {
+  $text = "$Raw"
+  if ([string]::IsNullOrWhiteSpace($text)) {
+    throw "JSON vide pour $Context."
+  }
+
+  $objPos = $text.IndexOf('{')
+  $arrPos = $text.IndexOf('[')
+  $start = -1
+  if ($objPos -ge 0 -and $arrPos -ge 0) {
+    $start = [Math]::Min($objPos, $arrPos)
+  }
+  elseif ($objPos -ge 0) {
+    $start = $objPos
+  }
+  elseif ($arrPos -ge 0) {
+    $start = $arrPos
+  }
+
+  if ($start -lt 0) {
+    $preview = $text
+    if ($preview.Length -gt 300) { $preview = $preview.Substring(0, 300) + "...(truncated)" }
+    throw ("Payload non JSON pour {0}: {1}" -f $Context, $preview)
+  }
+
+  $json = $text.Substring($start).Trim()
+  try {
+    return ($json | ConvertFrom-Json)
+  }
+  catch {
+    $preview = $json
+    if ($preview.Length -gt 300) { $preview = $preview.Substring(0, 300) + "...(truncated)" }
+    throw ("JSON invalide pour {0}: {1}" -f $Context, $preview)
+  }
+}
+
 function Test-RepoAccess($Repo) {
-  gh repo view $Repo *> $null
-  return ($LASTEXITCODE -eq 0)
+  $raw = gh api "repos/$Repo" --jq ".full_name" 2>&1
+  return ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$raw"))
 }
 
 function Test-RepoPushAccess($Repo) {
@@ -151,7 +215,7 @@ function Get-AccessibleRepoMap($InputMap) {
     $viewOk = Test-RepoAccess -Repo $repo
     $pushOk = Test-RepoPushAccess -Repo $repo
 
-    if ($viewOk -and $pushOk) {
+    if ($pushOk) {
       $active[$key] = $repo
       continue
     }
@@ -251,12 +315,14 @@ function Get-RepoIssueTitleSet($Repo) {
   }
 
   $set = @{}
-  $raw = gh issue list --repo $Repo --state all --json title --limit 1000 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw "Impossible de lister les issues pour $Repo. Detail: $raw"
+  try {
+    $raw = Invoke-GhCommandWithRetry -GhArgs @("issue","list","--repo",$Repo,"--state","all","--json","title","--limit","1000")
+  }
+  catch {
+    throw "Impossible de lister les issues pour $Repo. Detail: $($_.Exception.Message)"
   }
 
-  $items = $raw | ConvertFrom-Json
+  $items = ConvertFrom-GhJsonSafe -Raw $raw -Context "issue list titles $Repo"
   foreach ($it in $items) {
     if (-not [string]::IsNullOrWhiteSpace($it.title)) {
       $set[$it.title] = $true
@@ -323,13 +389,15 @@ function Set-IssueBodyIfNeeded($Repo, $IssueNumber, $CurrentBody, $TargetBody) {
 function Archive-DuplicateIssues($RepoMapToUse) {
   foreach ($repo in $RepoMapToUse.Values) {
     Write-Host "Check duplicates in $repo"
-    $raw = gh issue list --repo $repo --state all --json number,title,state,url --limit 1000 2>&1
-    if ($LASTEXITCODE -ne 0) {
-      Write-Warning "Impossible de lister les issues pour dedupe ($repo): $raw"
+    try {
+      $raw = Invoke-GhCommandWithRetry -GhArgs @("issue","list","--repo",$repo,"--state","all","--json","number,title,state,url","--limit","1000")
+    }
+    catch {
+      Write-Warning "Impossible de lister les issues pour dedupe ($repo): $($_.Exception.Message)"
       continue
     }
 
-    $issues = $raw | ConvertFrom-Json
+    $issues = ConvertFrom-GhJsonSafe -Raw $raw -Context "issue list dedupe $repo"
     $groups = @{}
     foreach ($it in $issues) {
       if ([string]::IsNullOrWhiteSpace($it.title)) { continue }
@@ -387,13 +455,15 @@ mutation($issueId:ID!) {
 function Delete-DuplicateIssues($RepoMapToUse) {
   foreach ($repo in $RepoMapToUse.Values) {
     Write-Host "Check duplicates (delete mode) in $repo"
-    $raw = gh issue list --repo $repo --state all --json number,title,state,url --limit 1000 2>&1
-    if ($LASTEXITCODE -ne 0) {
-      Write-Warning "Impossible de lister les issues pour dedupe ($repo): $raw"
+    try {
+      $raw = Invoke-GhCommandWithRetry -GhArgs @("issue","list","--repo",$repo,"--state","all","--json","number,title,state,url","--limit","1000")
+    }
+    catch {
+      Write-Warning "Impossible de lister les issues pour dedupe ($repo): $($_.Exception.Message)"
       continue
     }
 
-    $issues = $raw | ConvertFrom-Json
+    $issues = ConvertFrom-GhJsonSafe -Raw $raw -Context "issue list dedupe-delete $repo"
     $groups = @{}
     foreach ($it in $issues) {
       if ([string]::IsNullOrWhiteSpace($it.title)) { continue }
@@ -421,11 +491,13 @@ function Delete-DuplicateIssues($RepoMapToUse) {
 }
 
 function Get-AllRepoIssues($Repo) {
-  $raw = gh issue list --repo $Repo --state all --json number,title,state,url --limit 1000 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw "Impossible de lister les issues pour $Repo. Detail: $raw"
+  try {
+    $raw = Invoke-GhCommandWithRetry -GhArgs @("issue","list","--repo",$Repo,"--state","all","--json","number,title,state,url","--limit","1000")
   }
-  return ($raw | ConvertFrom-Json)
+  catch {
+    throw "Impossible de lister les issues pour $Repo. Detail: $($_.Exception.Message)"
+  }
+  return (ConvertFrom-GhJsonSafe -Raw $raw -Context "issue list all $Repo")
 }
 
 function Delete-ImportedIssues($RepoMapToUse) {
@@ -555,12 +627,14 @@ function Get-EpicIdForFeatureId($FeatureId) {
 function Get-IssueIdentityIndex($RepoMapToUse) {
   $index = @{}
   foreach ($repo in $RepoMapToUse.Values) {
-    $raw = gh issue list --repo $repo --state all --json id,number,title --limit 1000 2>&1
-    if ($LASTEXITCODE -ne 0) {
-      Write-Warning "Impossible de lister les issues pour index parent ($repo): $raw"
+    try {
+      $raw = Invoke-GhCommandWithRetry -GhArgs @("issue","list","--repo",$repo,"--state","all","--json","id,number,title","--limit","1000")
+    }
+    catch {
+      Write-Warning "Impossible de lister les issues pour index parent ($repo): $($_.Exception.Message)"
       continue
     }
-    $items = $raw | ConvertFrom-Json
+    $items = ConvertFrom-GhJsonSafe -Raw $raw -Context "issue list parent-index $repo"
     foreach ($it in $items) {
       if ([string]::IsNullOrWhiteSpace($it.title)) { continue }
       $key = "$repo|$($it.title)"
@@ -592,7 +666,11 @@ mutation($parentId:ID!, $subIssueId:ID!) {
   }
   catch {
     $msg = $_.Exception.Message
-    if ($msg -match "already" -or $msg -match "exists" -or $msg -match "has a parent") {
+    if ($msg -match "already" -or
+        $msg -match "exists" -or
+        $msg -match "has a parent" -or
+        $msg -match "duplicate sub-issues" -or
+        $msg -match "only have one parent") {
       return
     }
     Write-Warning "Lien parent echec ($ParentRef -> $ChildRef): $msg"

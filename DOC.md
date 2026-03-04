@@ -24,8 +24,12 @@ Regle generale:
 | Setup du GitHub Project | [docs/GITHUB_PROJECT_SETUP.md](docs/GITHUB_PROJECT_SETUP.md) | import CSV, script, sync project |
 | Infrastructure serveur/systeme | [docs/INFRA_SERVER_SYSTEM.md](docs/INFRA_SERVER_SYSTEM.md) | architecture infra, data layer, reseau, observabilite |
 | Besoins materiels / budget | [docs/HARDWARE_REQUIREMENTS.md](docs/HARDWARE_REQUIREMENTS.md) | besoins hardware + placeholders couts |
-| Roadmap execution | [docs/ROADMAP.md](docs/ROADMAP.md) | sequencing par cycles, priorisation doc/dev |
-| Design technique POC | [docs/TECHNICAL_DOCS.md](docs/TECHNICAL_DOCS.md) | decisions techniques et architecture POC ACTIONS |
+| Roadmap (index) | [docs/ROADMAP.md](docs/ROADMAP.md) | point d'entree POC/MVP |
+| Roadmap POC | [docs/POC/ROADMAP.md](docs/POC/ROADMAP.md) | planning specifique POC ACTIONS |
+| Roadmap MVP | [docs/MVP/ROADMAP.md](docs/MVP/ROADMAP.md) | planning produit complet ACTIONS/API/APP/VITRINE |
+| Technical docs (index) | [docs/TECHNICAL_DOCS.md](docs/TECHNICAL_DOCS.md) | point d'entree POC/MVP |
+| Technical docs POC | [docs/POC/TECHNICAL_DOCS.md](docs/POC/TECHNICAL_DOCS.md) | design technique POC ACTIONS |
+| Technical docs MVP | [docs/MVP/TECHNICAL_DOCS.md](docs/MVP/TECHNICAL_DOCS.md) | design technique MVP complet multi-repo |
 | Reference detaillee action | [docs/FULL_DOCS.md](docs/FULL_DOCS.md) | reference exhaustive de l'action InstantRelease |
 
 ## 3. Parcours de lecture recommande
